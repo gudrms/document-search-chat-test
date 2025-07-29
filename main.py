@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -12,6 +12,11 @@ from datetime import datetime
 import PyPDF2
 import hashlib
 import re
+from app.services.vector_search import create_vector_search_engine
+
+# 벡터 검색 엔진 초기화
+vector_engine = create_vector_search_engine()
+
 
 # FastAPI 앱 생성
 app = FastAPI(title="Document Search & Chat System", version="1.0.0")
@@ -79,9 +84,18 @@ class DocumentProcessor:
 
 
 
-    async def process_file(self, file_path: str, filename: str) -> Dict[str, Any]:
+    async def process_file(self, file: UploadFile) -> Dict[str, Any]:
         try:
-            ext = filename.lower().split('.')[-1]
+            if not file.filename:
+                raise ValueError("파일 이름이 없습니다.")
+
+            # 파일 저장
+            file_path = os.path.join(UPLOAD_DIR, file.filename)
+            async with aiofiles.open(file_path, 'wb') as f:
+                content = await file.read()
+                await f.write(content)
+
+            ext = file.filename.lower().split('.')[-1]
             
             if ext == 'pdf':
                 content = await self.extract_pdf_text(file_path)
@@ -93,17 +107,18 @@ class DocumentProcessor:
                 raise ValueError(f"지원하지 않는 파일 형식: {ext}")
             
             file_stats = os.stat(file_path)
-            document_id = self.generate_document_id(filename)
+            document_id = self.generate_document_id(file.filename)
             
             metadata = {
                 'id': document_id,
-                'filename': filename,
+                'filename': file.filename,
                 'content': content,
                 'size': file_stats.st_size,
                 'upload_time': datetime.now().isoformat(),
                 'file_type': ext,
                 'word_count': len(content.split()),
-                'char_count': len(content)
+                'char_count': len(content),
+                'filepath': file_path
             }
             
             processed_file_path = os.path.join(PROCESSED_DIR, f"{document_id}.json")
@@ -123,47 +138,38 @@ doc_processor = DocumentProcessor()
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-@app.post("/upload")
+@app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
-    try:
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="파일이 선택되지 않았습니다.")
-        
-        # 파일 형식 확인
-        allowed_extensions = {'pdf', 'txt', 'docx', 'md'}
-        file_ext = file.filename.lower().split('.')[-1]
-        if file_ext not in allowed_extensions:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"지원하지 않는 파일 형식입니다. 지원 형식: {', '.join(allowed_extensions)}"
-            )
-        
-        # 파일 저장
-        file_path = os.path.join(UPLOAD_DIR, file.filename)
-        async with aiofiles.open(file_path, 'wb') as f:
-            content = await file.read()
-            await f.write(content)
-        
-        # 파일 처리
-        metadata = await doc_processor.process_file(file_path, file.filename)
-        
-        return JSONResponse({
-            "success": True,
-            "message": "파일이 업로드되고 처리되었습니다.",
-            "document": {
-                "id": metadata["id"],
-                "filename": metadata["filename"],
-                "size": metadata["size"],
-                "file_type": metadata["file_type"],
-                "word_count": metadata["word_count"],
-                "upload_time": metadata["upload_time"]
-            }
-        })
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="파일 이름이 없습니다.")
 
-@app.get("/documents")
+    # 파일 처리
+    doc_data = await doc_processor.process_file(file)
+
+    # (수정) 벡터 데이터베이스에 문서 추가
+    try:
+        vector_engine.add_document(
+            document_id=doc_data["id"],
+            content=doc_data["content"],
+            metadata=doc_data
+        )
+    except Exception as e:
+        # 만약 벡터 DB 추가에 실패하면 이미 저장된 파일을 정리
+        if os.path.exists(doc_data['filepath']):
+            os.remove(doc_data['filepath'])
+        if os.path.exists(os.path.join(PROCESSED_DIR, f"{doc_data['id']}.json")):
+            os.remove(os.path.join(PROCESSED_DIR, f"{doc_data['id']}.json"))
+        raise HTTPException(status_code=500, detail=f"문서 벡터화 실패: {e}")
+
+    return JSONResponse(
+        status_code=201,
+        content={
+            "message": "파일 업로드 및 처리 성공",
+            "document": doc_data
+        }
+    )
+
+@app.get("/api/documents")
 async def get_documents():
     try:
         documents = []
@@ -182,113 +188,101 @@ async def get_documents():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"문서 목록 조회 실패: {str(e)}")
 
-@app.post("/search")
+@app.post("/api/search")
 async def search_documents(request: Request):
     try:
         data = await request.json()
         query = data.get("query", "").strip()
-        
+
         if not query:
             raise HTTPException(status_code=400, detail="검색어를 입력해주세요.")
-        
+
+        # 벡터 검색을 통해 의미적으로 유사한 문서 조각을 검색합니다.
+        vector_results = vector_engine.search_documents(
+            query=query,
+            n_results=10,
+            score_threshold=0.3 # 유사도 점수 임계값
+        )
+
+        # 프론트엔드에서 사용할 형식으로 검색 결과를 가공합니다.
         results = []
-        for filename in os.listdir(PROCESSED_DIR):
-            if filename.endswith('.json'):
-                file_path = os.path.join(PROCESSED_DIR, filename)
-                async with aiofiles.open(file_path, 'r', encoding='utf-8') as f:
-                    content = await f.read()
-                    doc_data = json.loads(content)
-                    
-                    if query.lower() in doc_data['content'].lower():
-                        # 검색어 주변 컨텍스트 추출
-                        content_lower = doc_data['content'].lower()
-                        query_lower = query.lower()
-                        
-                        matches = []
-                        start = 0
-                        while True:
-                            pos = content_lower.find(query_lower, start)
-                            if pos == -1:
-                                break
-                            
-                            # 앞뒤 50자씩 추출
-                            context_start = max(0, pos - 50)
-                            context_end = min(len(doc_data['content']), pos + len(query) + 50)
-                            context = doc_data['content'][context_start:context_end]
-                            
-                            # 검색어 하이라이트
-                            highlighted = re.sub(
-                                re.escape(query), 
-                                f"<mark>{query}</mark>", 
-                                context, 
-                                flags=re.IGNORECASE
-                            )
-                            
-                            matches.append(highlighted)
-                            start = pos + 1
-                            
-                            if len(matches) >= 3:  # 최대 3개 매치만 표시
-                                break
-                        
-                        results.append({
-                            "id": doc_data["id"],
-                            "filename": doc_data["filename"],
-                            "file_type": doc_data["file_type"],
-                            "upload_time": doc_data["upload_time"],
-                            "matches": matches[:3]
-                        })
-        
+        for res in vector_results:
+            metadata = res.get('metadata', {})
+            # content_snippet 키를 사용하여 프론트엔드에 전달합니다.
+            snippet = res.get('content', '')
+            highlighted_snippet = re.sub(
+                re.escape(query),
+                f"<mark>{query}</mark>",
+                snippet,
+                flags=re.IGNORECASE
+            )
+            
+            results.append({
+                "id": metadata.get("id"),
+                "filename": metadata.get("filename"),
+                "file_type": metadata.get("file_type"),
+                "upload_time": metadata.get("upload_time"),
+                "content_snippet": highlighted_snippet # JS에서 사용하는 키
+            })
+
         return JSONResponse({
             "query": query,
             "results": results,
-            "total": len(results)
+            "total_results": len(results) # JS에서 사용하는 키
         })
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"검색 실패: {str(e)}")
 
-@app.post("/chat")
+@app.post("/api/chat")
 async def chat_with_documents(request: Request):
     try:
         import requests
         
         data = await request.json()
-        question = data.get("question", "").strip()
+        question = data.get("message", "").strip()  # "question" → "message"로 변경
         
         if not question:
             raise HTTPException(status_code=400, detail="질문을 입력해주세요.")
         
-        # 모든 문서 내용 수집
-        all_content = []
-        for filename in os.listdir(PROCESSED_DIR):
-            if filename.endswith('.json'):
-                file_path = os.path.join(PROCESSED_DIR, filename)
-                async with aiofiles.open(file_path, 'r', encoding='utf-8') as f:
-                    content = await f.read()
-                    doc_data = json.loads(content)
-                    all_content.append(f"[{doc_data['filename']}]\n{doc_data['content']}")
+        # 1. 벡터 검색으로 질문과 가장 관련 높은 문서 조각(chunk)을 찾습니다.
+        relevant_chunks = vector_engine.search_documents(
+            query=question,
+            n_results=5,  # AI에게 전달할 가장 관련성 높은 조각 5개
+            score_threshold=0.4
+        )
         
-        if not all_content:
+        if not relevant_chunks:
             return JSONResponse({
-                "question": question,
-                "answer": "업로드된 문서가 없습니다. 먼저 문서를 업로드해주세요.",
+                "response": "업로드된 문서에서 질문과 관련된 정보를 찾을 수 없습니다.",  # "answer" → "response"로 변경
                 "sources": []
             })
+            
+        # 2. 검색된 조각들을 바탕으로 AI에게 전달할 컨텍스트(context)를 구성합니다.
+        context_parts = []
+        source_filenames = set()
+        for chunk in relevant_chunks:
+            metadata = chunk.get('metadata', {})
+            filename = metadata.get('filename', '알 수 없는 파일')
+            context_parts.append(f"문서명: {filename}\n내용:\n{chunk['content']}")
+            source_filenames.add(filename)
+            
+        context = "\n\n---\n\n".join(context_parts)
         
-        # 컨텍스트 준비
-        context = "\n\n".join(all_content)
-        if len(context) > 4000:  # 토큰 제한을 위해 길이 제한
-            context = context[:4000] + "..."
-        
-        # Ollama에 요청
-        prompt = f"""다음 문서들을 기반으로 질문에 답변해주세요:
+        # 3. 구성된 컨텍스트를 기반으로 AI에게 질문합니다.
+        prompt = f"""당신은 문서 분석 전문가입니다. 아래 제공된 문서 내용을 바탕으로 질문에 대해 상세하고 친절하게 답변해주세요.
 
-문서 내용:
+[제공된 문서 내용]
 {context}
 
-질문: {question}
+[질문]
+{question}
 
-답변은 한국어로 해주시고, 문서의 내용을 기반으로 정확하게 답변해주세요. 문서에서 답을 찾을 수 없다면 그렇게 말해주세요."""
+[답변 조건]
+- 반드시 제공된 문서 내용에 근거하여 답변해야 합니다.
+- 문서에 관련 내용이 없으면 "제공된 문서의 내용만으로는 답변하기 어렵습니다."라고 솔직하게 답변하세요.
+- 답변은 한국어로 작성해주세요.
+- 개인정보, 신원 확인서 등의 용어가 나오면 반드시 문서의 정확한 내용을 기반으로 답변하세요."""
 
         ollama_response = requests.post(
             f"{OLLAMA_HOST}/api/generate",
@@ -297,45 +291,52 @@ async def chat_with_documents(request: Request):
                 "prompt": prompt,
                 "stream": False
             },
-            timeout=30
+            timeout=60  # 응답 시간을 넉넉하게 설정
         )
         
-        if ollama_response.status_code != 200:
-            raise HTTPException(status_code=500, detail="AI 모델 응답 오류")
+        ollama_response.raise_for_status()
         
         ai_response = ollama_response.json()
-        answer = ai_response.get("response", "응답을 생성할 수 없습니다.")
+        answer = ai_response.get("response", "오류: 답변을 생성할 수 없습니다.")
         
         return JSONResponse({
-            "question": question,
-            "answer": answer,
-            "sources": [filename.replace('.json', '') for filename in os.listdir(PROCESSED_DIR) if filename.endswith('.json')]
+            "response": answer,  # "answer" → "response"로 변경
+            "sources": sorted(list(source_filenames))
         })
         
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=503, detail=f"AI 모델 서버에 연결할 수 없습니다: {e}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"채팅 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"채팅 처리 중 오류 발생: {str(e)}")
 
-@app.delete("/documents/{document_id}")
+@app.delete("/api/documents/{document_id}")
 async def delete_document(document_id: str):
+    # JSON 파일 경로
+    json_path = os.path.join(PROCESSED_DIR, f"{document_id}.json")
+
+    if not os.path.exists(json_path):
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+
     try:
-        processed_file = os.path.join(PROCESSED_DIR, f"{document_id}.json")
-        if not os.path.exists(processed_file):
-            raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+        # 원본 파일 경로 찾기 및 삭제
+        async with aiofiles.open(json_path, 'r', encoding='utf-8') as f:
+            content = await f.read()
+            doc_data = json.loads(content)
         
-        os.remove(processed_file)
+        original_filepath = doc_data.get('filepath')
+        if original_filepath and os.path.exists(original_filepath):
+            os.remove(original_filepath)
         
-        # 원본 파일도 찾아서 삭제
-        for filename in os.listdir(UPLOAD_DIR):
-            if document_id in filename:
-                original_file = os.path.join(UPLOAD_DIR, filename)
-                if os.path.exists(original_file):
-                    os.remove(original_file)
-                    break
+        # JSON 파일 삭제
+        os.remove(json_path)
         
-        return JSONResponse({"success": True, "message": "문서가 삭제되었습니다."})
-        
+        # (수정) 벡터 데이터베이스에서 문서 삭제
+        vector_engine.remove_document(document_id=document_id)
+
+        return JSONResponse(content={"message": f"문서(ID: {document_id})가 성공적으로 삭제되었습니다."})
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"문서 삭제 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"문서 삭제 중 오류 발생: {str(e)}")
 
 if __name__ == "__main__":
     print("🚀 Document Search & Chat System 시작!")

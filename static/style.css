@@ -231,6 +231,302 @@ body {
     margin-bottom: 20px;
 }
 
+/* 추가된 스타일들 (기존 HTML의 인라인 스타일) */
+
+/* 기본 스타일 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+/* 헤더 스타일 */
+.header {
+    background: linear-gradient(135deg, #4facfe 0%, rgba(80, 6, 6, 0) 100%);
+    color: white;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.header p {
+    font-size: 1.2em;
+    opacity: 0.9;
+}
+
+/* 탭 스타일 */
+.tabs {
+    display: flex;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.tab {
+    flex: 1;
+    padding: 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #6c757d;
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.tab:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.tab.active {
+    color: #4facfe;
+    border-bottom-color: #4facfe;
+    background: white;
+}
+
+/* 탭 콘텐츠 */
+.tab-content {
+    padding: 40px;
+    min-height: 500px;
+}
+
+/* 업로드 영역 */
+.upload-area {
+    border: 3px dashed #dee2e6;
+    border-radius: 15px;
+    padding: 60px 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    background: #f8f9fa;
+}
+
+.upload-area:hover {
+    border-color: #4facfe;
+    background: #f0f8ff;
+}
+
+.upload-area.dragover {
+    border-color: #4facfe;
+    background: #e6f3ff;
+    transform: scale(1.02);
+}
+
+.upload-area p {
+    font-size: 1.2em;
+    color: #6c757d;
+    margin-bottom: 10px;
+}
+
+.upload-area p:first-child {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: #495057;
+}
+
+.file-input {
+    display: none;
+}
+
+.upload-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #4facfe 100%);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 25px;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.3s ease;
+}
+
+.upload-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(79, 172, 254, 0.3);
+}
+
+/* 검색 영역 */
+.search-box {
+    display: flex;
+    margin-bottom: 30px;
+    gap: 15px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 15px 20px;
+    border: 2px solid #dee2e6;
+    border-radius: 25px;
+    font-size: 1.1em;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    border-color: #4facfe;
+    box-shadow: 0 0 20px rgba(79, 172, 254, 0.2);
+}
+
+.search-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 25px;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.search-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+}
+
+/* 채팅 영역 (추가 스타일) */
+.question {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 20px 20px 5px 20px;
+    margin-left: 50px;
+    position: relative;
+}
+
+.answer {
+    background: white;
+    color: #333;
+    padding: 15px 20px;
+    border-radius: 20px 20px 20px 5px;
+    margin-right: 50px;
+    border: 2px solid #e9ecef;
+    position: relative;
+}
+
+.chat-input {
+    display: flex;
+    gap: 15px;
+}
+
+.chat-input input {
+    flex: 1;
+    padding: 15px 20px;
+    border: 2px solid #dee2e6;
+    border-radius: 25px;
+    font-size: 1.1em;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.chat-input input:focus {
+    border-color: #4facfe;
+    box-shadow: 0 0 20px rgba(79, 172, 254, 0.2);
+}
+
+.send-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    border: none;
+    padding: 15px 25px;
+    border-radius: 25px;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.send-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(79, 172, 254, 0.3);
+}
+
+/* 결과 영역 */
+.results {
+    background: #f8f9fa;
+    border-radius: 15px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.result-item {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-left: 4px solid #4facfe;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.result-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.result-content {
+    color: #666;
+    line-height: 1.6;
+}
+
+/* 문서 목록 */
+.documents-list {
+    display: grid;
+    gap: 20px;
+}
+
+/* 알림 */
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-danger {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.alert-info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+/* 로딩 상태 */
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #4facfe;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
 /* 반응형 디자인 */
 @media (max-width: 768px) {
     .sidebar {
@@ -249,6 +545,57 @@ body {
     
     .message-content {
         max-width: 85%;
+    }
+
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        border-radius: 10px;
+    }
+
+    .header {
+        padding: 20px;
+    }
+
+    .header h1 {
+        font-size: 2em;
+    }
+
+    .tabs {
+        flex-direction: column;
+    }
+
+    .tab {
+        text-align: center;
+    }
+
+    .tab-content {
+        padding: 20px;
+    }
+
+    .search-box,
+    .chat-input {
+        flex-direction: column;
+    }
+
+    .question {
+        margin-left: 0;
+        margin-right: 20px;
+    }
+
+    .answer {
+        margin-right: 0;
+        margin-left: 20px;
+    }
+
+    .chat-container {
+        height: 400px;
+    }
+
+    .upload-area {
+        padding: 30px 20px;
     }
 }
 
@@ -287,4 +634,9 @@ body {
 @keyframes slideIn {
     from { transform: translateY(20px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }

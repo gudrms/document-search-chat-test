@@ -2,62 +2,192 @@
 let documents = [];
 let isLoading = false;
 
-// 페이지 로드 시 초기화
+// DOMContentLoaded에서 모든 이벤트 리스너 등록
 document.addEventListener("DOMContentLoaded", function() {
     loadDocuments();
+    initializeEventListeners();
     
     // Enter 키 이벤트 설정
-    document.getElementById("searchInput").addEventListener("keypress", function(e) {
-        if (e.key === "Enter") {
-            searchDocuments();
-        }
-    });
+    const searchInput = document.getElementById("searchInput");
+    if (searchInput) {
+        searchInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                searchDocuments();
+            }
+        });
+    }
 });
 
-// 파일 업로드
-async function uploadFiles() {
-    const fileInput = document.getElementById("fileInput");
-    const files = fileInput.files;
+function initializeEventListeners() {
+    // 탭 버튼들
+    document.querySelectorAll('[data-tab]').forEach(button => {
+        button.addEventListener('click', function() {
+            const tabName = this.getAttribute('data-tab');
+            showTab(tabName);
+        });
+    });
     
-    if (files.length === 0) {
-        showAlert("파일을 선택해주세요.", "warning");
-        return;
+    // 파일 선택 버튼
+    const uploadBtn = document.querySelector('.upload-btn');
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', function() {
+            document.getElementById('fileInput').click();
+        });
     }
     
-    showLoading(true);
+    // 검색 버튼
+    const searchBtn = document.querySelector('.search-btn');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', searchDocuments);
+    }
     
-    for (let file of files) {
-        try {
-            const formData = new FormData();
-            formData.append("file", file);
-            
-            const response = await fetch("/api/upload", {
-                method: "POST",
-                body: formData
-            });
-            
-            const result = await response.json();
-            
-            if (response.ok) {
-                showAlert("파일 \"" + file.name + "\"이 업로드되었습니다.", "success");
-            } else {
-                showAlert("파일 \"" + file.name + "\" 업로드 실패: " + result.detail, "danger");
+    // 채팅 전송 버튼
+    const sendBtn = document.querySelector('.send-btn');
+    if (sendBtn) {
+        sendBtn.addEventListener('click', sendMessage);
+    }
+    
+    // 채팅 입력 엔터키
+    const chatInput = document.getElementById("chatInput");
+    if (chatInput) {
+        chatInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
             }
-        } catch (error) {
-            showAlert("파일 \"" + file.name + "\" 업로드 중 오류: " + error.message, "danger");
+        });
+    }
+    
+    // 드래그 앤 드롭 초기화
+    initializeDragDrop();
+}
+
+// 동적으로 생성되는 삭제 버튼을 위한 이벤트 위임
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('document-delete')) {
+        const docId = e.target.getAttribute('data-doc-id');
+        if (docId) {
+            deleteDocument(docId);
         }
     }
+});
+
+// 탭 전환 함수
+function showTab(tabName) {
+    // 모든 탭 콘텐츠 숨기기
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.style.display = 'none';
+    });
     
-    // 파일 입력 초기화 및 문서 목록 새로고침
-    fileInput.value = "";
-    await loadDocuments();
-    showLoading(false);
+    // 모든 탭 버튼 비활성화
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // 선택된 탭 콘텐츠 표시
+    const targetTab = document.getElementById(tabName + '-tab');
+    if (targetTab) {
+        targetTab.style.display = 'block';
+    }
+    
+    // 클릭된 탭 버튼 활성화
+    const clickedTab = document.querySelector(`[data-tab="${tabName}"]`);
+    if (clickedTab) {
+        clickedTab.classList.add('active');
+    }
+    
+    // 문서 목록 탭인 경우 문서 목록 로드
+    if (tabName === 'documents') {
+        loadDocuments();
+    }
 }
+
+// 드래그 앤 드롭 초기화
+function initializeDragDrop() {
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+
+    if (!uploadArea || !fileInput) return;
+
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            uploadSingleFile(files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            uploadSingleFile(e.target.files[0]);
+        }
+    });
+}
+
+// 단일 파일 업로드
+async function uploadSingleFile(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    showLoading(true);
+    
+    try {
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            const docInfo = result.document || result;
+            document.getElementById('uploadResult').innerHTML = `
+                <div class="alert alert-success">
+                    <h5>✅ 업로드 성공!</h5>
+                    <p><strong>파일:</strong> ${docInfo.filename}</p>
+                    <p><strong>크기:</strong> ${formatFileSize(docInfo.size)}</p>
+                    <p><strong>단어 수:</strong> ${docInfo.word_count || 'N/A'}</p>
+                    <p><strong>업로드 시간:</strong> ${formatDate(docInfo.upload_time)}</p>
+                </div>
+            `;
+            showAlert("파일이 업로드되었습니다.", "success");
+            await loadDocuments();
+        } else {
+            throw new Error(result.detail || '업로드 실패');
+        }
+    } catch (error) {
+        document.getElementById('uploadResult').innerHTML = `
+            <div class="alert alert-danger">
+                <h5>❌ 업로드 실패</h5>
+                <p>${error.message}</p>
+            </div>
+        `;
+        showAlert("업로드 실패: " + error.message, "danger");
+    }
+    
+    showLoading(false);
+    
+    // 파일 입력 초기화
+    document.getElementById('fileInput').value = '';
+}
+
 // 문서 목록 로드
 async function loadDocuments() {
     try {
         const response = await fetch("/api/documents");
-        documents = await response.json();
+        const data = await response.json();
+        documents = data.documents || [];
         
         const documentsList = document.getElementById("documentsList");
         
@@ -68,15 +198,24 @@ async function loadDocuments() {
         
         let html = "";
         documents.forEach(doc => {
-            html += "<div class=\"document-item fade-in\">";
-            html += "<button class=\"document-delete\" onclick=\"deleteDocument('" + doc.id + "')\" title=\"삭제\">";
-            html += "<i class=\"fas fa-times\"></i>";
-            html += "</button>";
-            html += "<div class=\"document-name\">" + doc.filename + "</div>";
-            html += "<div class=\"document-info\">";
-            html += formatFileSize(doc.size) + " | " + formatDate(doc.upload_time);
-            html += "</div>";
-            html += "</div>";
+            html += `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="card-title">${doc.filename}</h6>
+                                <small class="text-muted">
+                                    ${formatFileSize(doc.size)} | ${formatDate(doc.upload_time)}
+                                </small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger document-delete" 
+                                    data-doc-id="${doc.id}" title="삭제">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
         });
         
         documentsList.innerHTML = html;
@@ -119,32 +258,37 @@ async function searchDocuments() {
     
     showLoading(false);
 }
+
 // 검색 결과 표시
 function displaySearchResults(result) {
     const searchResults = document.getElementById("searchResults");
     
     if (result.total_results === 0) {
-        searchResults.innerHTML = "<div class=\"text-center\">" +
-            "<i class=\"fas fa-search fa-3x text-muted mb-3\"></i>" +
-            "<h5>검색 결과가 없습니다</h5>" +
-            "<p class=\"text-muted\">다른 검색어를 시도해보세요.</p>" +
-            "</div>";
+        searchResults.innerHTML = `
+            <div class="text-center mt-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h5>검색 결과가 없습니다</h5>
+                <p class="text-muted">다른 검색어를 시도해보세요.</p>
+            </div>
+        `;
         return;
     }
     
-    let html = "<div class=\"mb-3\">" +
-        "<h6>검색 결과: " + result.total_results + "개</h6>" +
-        "</div>";
+    let html = `
+        <div class="mb-3">
+            <h6>검색 결과: ${result.total_results}개</h6>
+        </div>
+    `;
     
     result.results.forEach(item => {
-        html += "<div class=\"search-result-item slide-in\">";
-        html += "<div class=\"result-filename\">";
-        html += "<i class=\"fas fa-file-alt\"></i> " + item.filename;
-        html += "</div>";
-        html += "<div class=\"result-snippet\">";
-        html += highlightSearchTerm(item.content_snippet, result.query);
-        html += "</div>";
-        html += "</div>";
+        html += `
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="card-title">📄 ${item.filename}</h6>
+                    <div class="card-text">${item.content_snippet}</div>
+                </div>
+            </div>
+        `;
     });
     
     searchResults.innerHTML = html;
@@ -191,27 +335,33 @@ async function sendMessage() {
         addMessageToChat("오류: " + error.message, "bot");
     }
 }
+
 // 채팅 메시지 추가
-function addMessageToChat(content, sender, isLoading, sources) {
+function addMessageToChat(content, sender, isLoading = false, sources = null) {
     const chatMessages = document.getElementById("chatMessages");
     const messageId = "msg_" + Date.now();
     
     let sourcesHtml = "";
     if (sources && sources.length > 0) {
-        sourcesHtml = "<div class=\"message-sources\">출처: " + sources.join(", ") + "</div>";
+        sourcesHtml = `<div class="small text-muted mt-2">출처: ${sources.join(", ")}</div>`;
     }
     
     let loadingSpinner = "";
     if (isLoading) {
-        loadingSpinner = "<span class=\"spinner-border spinner-border-sm me-2\"></span>";
+        loadingSpinner = '<span class="spinner-border spinner-border-sm me-2"></span>';
     }
     
-    const messageHtml = "<div class=\"message " + sender + "-message slide-in\" id=\"" + messageId + "\">" +
-        "<div class=\"message-content\">" +
-        loadingSpinner + content +
-        sourcesHtml +
-        "</div>" +
-        "</div>";
+    const messageClass = sender === "user" ? "text-end" : "text-start";
+    const bgClass = sender === "user" ? "bg-primary text-white" : "bg-light";
+    
+    const messageHtml = `
+        <div class="mb-3 ${messageClass}" id="${messageId}">
+            <div class="d-inline-block p-3 rounded ${bgClass}" style="max-width: 70%;">
+                ${loadingSpinner}${content}
+                ${sourcesHtml}
+            </div>
+        </div>
+    `;
     
     chatMessages.insertAdjacentHTML("beforeend", messageHtml);
     chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -224,14 +374,6 @@ function removeMessage(messageId) {
     const message = document.getElementById(messageId);
     if (message) {
         message.remove();
-    }
-}
-
-// 채팅 Enter 키 처리
-function handleChatEnter(event) {
-    if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        sendMessage();
     }
 }
 
@@ -261,27 +403,36 @@ async function deleteDocument(docId) {
 
 // 유틸리티 함수들
 function showLoading(show) {
-    const loadingModal = new bootstrap.Modal(document.getElementById("loadingModal"));
+    const loadingModal = document.getElementById("loadingModal");
+    if (!loadingModal) return;
+    
     if (show) {
-        loadingModal.show();
+        const modal = new bootstrap.Modal(loadingModal);
+        modal.show();
     } else {
-        loadingModal.hide();
+        const modalInstance = bootstrap.Modal.getInstance(loadingModal);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
     }
 }
 
 function showAlert(message, type) {
-    const alertHtml = "<div class=\"alert alert-" + type + " alert-dismissible fade show\" role=\"alert\">" +
-        message +
-        "<button type=\"button\" class=\"btn-close\" data-bs-dismiss=\"alert\"></button>" +
-        "</div>";
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999;" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
     
-    document.body.insertAdjacentHTML("afterbegin", alertHtml);
+    document.body.insertAdjacentHTML("beforeend", alertHtml);
     
     // 5초 후 자동 제거
     setTimeout(function() {
-        const alert = document.querySelector(".alert");
-        if (alert) {
-            alert.remove();
+        const alerts = document.querySelectorAll(".alert");
+        if (alerts.length > 0) {
+            alerts[alerts.length - 1].remove();
         }
     }, 5000);
 }
@@ -300,10 +451,4 @@ function formatDate(dateString) {
         hour: "2-digit",
         minute: "2-digit"
     });
-}
-
-function highlightSearchTerm(text, searchTerm) {
-    if (!searchTerm) return text;
-    const regex = new RegExp("(" + searchTerm + ")", "gi");
-    return text.replace(regex, "<span class=\"result-highlight\">$1</span>");
 }

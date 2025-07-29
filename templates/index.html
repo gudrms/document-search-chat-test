@@ -1,42 +1,12 @@
 ﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
+   <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document Search & Chat System</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .header { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .header h1 { color: #333; margin-bottom: 10px; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .tab.active { background: #0056b3; }
-        .tab-content { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .upload-area { border: 2px dashed #ddd; padding: 40px; text-align: center; border-radius: 10px; margin-bottom: 20px; }
-        .upload-area.dragover { border-color: #007bff; background: #f0f8ff; }
-        .file-input { display: none; }
-        .upload-btn { background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
-        .search-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-        .search-btn { background: #17a2b8; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-        .results { margin-top: 20px; }
-        .result-item { background: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin-bottom: 10px; border-radius: 5px; }
-        .chat-container { display: flex; flex-direction: column; height: 400px; }
-        .chat-messages { flex: 1; overflow-y: auto; padding: 15px; background: #f8f9fa; border-radius: 5px; margin-bottom: 10px; }
-        .message { margin-bottom: 15px; }
-        .question { background: #007bff; color: white; padding: 10px; border-radius: 10px; margin-left: 20%; }
-        .answer { background: white; padding: 10px; border-radius: 10px; margin-right: 20%; border: 1px solid #ddd; }
-        .chat-input { display: flex; gap: 10px; }
-        .chat-input input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-        .send-btn { background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-        .documents-list { margin-top: 20px; }
-        .document-item { background: white; padding: 15px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .delete-btn { background: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer; }
-        .loading { text-align: center; padding: 20px; color: #666; }
-        mark { background: #ffeb3b; padding: 2px 4px; border-radius: 3px; }
-    </style>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
 </head>
 <body>
     <div class="container">
@@ -46,33 +16,31 @@
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('upload')">📁 업로드</button>
-            <button class="tab" onclick="showTab('search')">🔍 검색</button>
-            <button class="tab" onclick="showTab('chat')">🤖 채팅</button>
-            <button class="tab" onclick="showTab('documents')">📋 문서 목록</button>
+            <button class="tab active" data-tab="upload">📁 업로드</button>
+            <button class="tab" data-tab="search">🔍 검색</button>
+            <button class="tab" data-tab="chat">🤖 채팅</button>
+            <button class="tab" data-tab="documents">📋 문서 목록</button>
         </div>
 
-        <!-- 업로드 탭 -->
+        <!-- 기존 탭 내용들... onclick 속성들 제거 -->
         <div id="upload-tab" class="tab-content">
             <div class="upload-area" id="uploadArea">
                 <p>📄 파일을 드래그하거나 클릭하여 업로드하세요</p>
                 <p>지원 형식: PDF, TXT, DOCX, MD</p>
                 <input type="file" id="fileInput" class="file-input" accept=".pdf,.txt,.docx,.md">
-                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">파일 선택</button>
+                <button class="upload-btn">파일 선택</button>
             </div>
             <div id="uploadResult"></div>
         </div>
 
-        <!-- 검색 탭 -->
         <div id="search-tab" class="tab-content" style="display:none;">
             <div class="search-box">
                 <input type="text" id="searchInput" class="search-input" placeholder="문서에서 검색할 내용을 입력하세요...">
-                <button class="search-btn" onclick="searchDocuments()">검색</button>
+                <button class="search-btn">검색</button>
             </div>
             <div id="searchResults" class="results"></div>
         </div>
 
-        <!-- 채팅 탭 -->
         <div id="chat-tab" class="tab-content" style="display:none;">
             <div class="chat-container">
                 <div id="chatMessages" class="chat-messages">
@@ -81,255 +49,19 @@
                     </div>
                 </div>
                 <div class="chat-input">
-                    <input type="text" id="chatInput" placeholder="문서에 대한 질문을 입력하세요..." onkeypress="if(event.key==='Enter') sendMessage()">
-                    <button class="send-btn" onclick="sendMessage()">전송</button>
+                    <input type="text" id="chatInput" placeholder="문서에 대한 질문을 입력하세요...">
+                    <button class="send-btn">전송</button>
                 </div>
             </div>
         </div>
 
-        <!-- 문서 목록 탭 -->
         <div id="documents-tab" class="tab-content" style="display:none;">
             <div id="documentsList" class="documents-list"></div>
         </div>
     </div>
 
-    <script>
-        // 탭 전환
-        function showTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.getElementById(tabName + '-tab').style.display = 'block';
-            event.target.classList.add('active');
-            
-            if (tabName === 'documents') {
-                loadDocuments();
-            }
-        }
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/app.js"></script>
 
-        // 파일 업로드 관련
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                uploadFile(files[0]);
-            }
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                uploadFile(e.target.files[0]);
-            }
-        });
-
-        async function uploadFile(file) {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const resultDiv = document.getElementById('uploadResult');
-            resultDiv.innerHTML = '<div class="loading">업로드 중...</div>';
-
-            try {
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    resultDiv.innerHTML = `
-                        <div class="result-item">
-                            <h3>✅ 업로드 성공!</h3>
-                            <p><strong>파일:</strong> ${result.document.filename}</p>
-                            <p><strong>크기:</strong> ${(result.document.size / 1024).toFixed(2)} KB</p>
-                            <p><strong>단어 수:</strong> ${result.document.word_count}</p>
-                            <p><strong>업로드 시간:</strong> ${new Date(result.document.upload_time).toLocaleString()}</p>
-                        </div>
-                    `;
-                } else {
-                    throw new Error(result.detail || '업로드 실패');
-                }
-            } catch (error) {
-                resultDiv.innerHTML = `
-                    <div class="result-item" style="border-left-color: #dc3545;">
-                        <h3>❌ 업로드 실패</h3>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-
-        // 검색 기능
-        async function searchDocuments() {
-            const query = document.getElementById('searchInput').value.trim();
-            const resultsDiv = document.getElementById('searchResults');
-
-            if (!query) {
-                alert('검색어를 입력해주세요.');
-                return;
-            }
-
-            resultsDiv.innerHTML = '<div class="loading">검색 중...</div>';
-
-            try {
-                const response = await fetch('/search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query })
-                });
-
-                const result = await response.json();
-
-                if (result.results.length === 0) {
-                    resultsDiv.innerHTML = '<div class="result-item">검색 결과가 없습니다.</div>';
-                    return;
-                }
-
-                let html = `<h3>검색 결과: ${result.total}개</h3>`;
-                result.results.forEach(doc => {
-                    html += `
-                        <div class="result-item">
-                            <h4>${doc.filename} (${doc.file_type.toUpperCase()})</h4>
-                            ${doc.matches.map(match => `<p>...${match}...</p>`).join('')}
-                        </div>
-                    `;
-                });
-
-                resultsDiv.innerHTML = html;
-            } catch (error) {
-                resultsDiv.innerHTML = `<div class="result-item" style="border-left-color: #dc3545;">검색 실패: ${error.message}</div>`;
-            }
-        }
-
-        // 채팅 기능
-        async function sendMessage() {
-            const input = document.getElementById('chatInput');
-            const question = input.value.trim();
-
-            if (!question) return;
-
-            const messagesDiv = document.getElementById('chatMessages');
-            
-            // 질문 표시
-            messagesDiv.innerHTML += `
-                <div class="message">
-                    <div class="question">${question}</div>
-                </div>
-            `;
-
-            // 로딩 표시
-            messagesDiv.innerHTML += `
-                <div class="message" id="loading">
-                    <div class="answer">🤖 답변 생성 중...</div>
-                </div>
-            `;
-
-            input.value = '';
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-            try {
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question })
-                });
-
-                const result = await response.json();
-
-                // 로딩 제거
-                document.getElementById('loading').remove();
-
-                // 답변 표시
-                messagesDiv.innerHTML += `
-                    <div class="message">
-                        <div class="answer">
-                            ${result.answer}
-                            ${result.sources.length > 0 ? `<br><small>📚 참조: ${result.sources.join(', ')}</small>` : ''}
-                        </div>
-                    </div>
-                `;
-
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            } catch (error) {
-                document.getElementById('loading').remove();
-                messagesDiv.innerHTML += `
-                    <div class="message">
-                        <div class="answer" style="color: #dc3545;">❌ 오류: ${error.message}</div>
-                    </div>
-                `;
-            }
-        }
-
-        // 문서 목록 로드
-        async function loadDocuments() {
-            const listDiv = document.getElementById('documentsList');
-            listDiv.innerHTML = '<div class="loading">문서 목록 로딩 중...</div>';
-
-            try {
-                const response = await fetch('/documents');
-                const result = await response.json();
-
-                if (result.documents.length === 0) {
-                    listDiv.innerHTML = '<div class="document-item">업로드된 문서가 없습니다.</div>';
-                    return;
-                }
-
-                let html = '';
-                result.documents.forEach(doc => {
-                    html += `
-                        <div class="document-item">
-                            <div>
-                                <h4>${doc.filename}</h4>
-                                <p>크기: ${(doc.size / 1024).toFixed(2)} KB | 단어 수: ${doc.word_count} | 업로드: ${new Date(doc.upload_time).toLocaleString()}</p>
-                            </div>
-                            <button class="delete-btn" onclick="deleteDocument('${doc.id}')">삭제</button>
-                        </div>
-                    `;
-                });
-
-                listDiv.innerHTML = html;
-            } catch (error) {
-                listDiv.innerHTML = `<div class="document-item" style="color: #dc3545;">문서 목록 로드 실패: ${error.message}</div>`;
-            }
-        }
-
-        // 문서 삭제
-        async function deleteDocument(docId) {
-            if (!confirm('정말 이 문서를 삭제하시겠습니까?')) return;
-
-            try {
-                const response = await fetch(`/documents/${docId}`, { method: 'DELETE' });
-                const result = await response.json();
-
-                if (result.success) {
-                    loadDocuments(); // 목록 새로고침
-                } else {
-                    alert('삭제 실패');
-                }
-            } catch (error) {
-                alert(`삭제 실패: ${error.message}`);
-            }
-        }
-
-        // 검색 입력 엔터키 이벤트
-        document.getElementById('searchInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                searchDocuments();
-            }
-        });
-    </script>
 </body>
 </html>
