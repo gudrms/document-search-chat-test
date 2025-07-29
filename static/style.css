@@ -1,0 +1,290 @@
+﻿/* 전체 레이아웃 */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    margin: 0;
+    padding: 0;
+}
+
+.container-fluid {
+    padding: 0;
+    height: 100vh;
+}
+
+/* 사이드바 스타일 */
+.sidebar {
+    background-color: #343a40;
+    color: white;
+    padding: 20px;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.sidebar-header {
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #495057;
+}
+
+.sidebar-header h4 {
+    margin: 0;
+    color: #fff;
+}
+
+.upload-section {
+    margin-bottom: 30px;
+}
+
+.upload-section h6 {
+    color: #adb5bd;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.documents-section h6 {
+    color: #adb5bd;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.documents-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.document-item {
+    background-color: #495057;
+    padding: 10px;
+    margin-bottom: 8px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    position: relative;
+}
+
+.document-item:hover {
+    background-color: #5a6268;
+}
+
+.document-name {
+    font-weight: 500;
+    margin-bottom: 5px;
+    word-break: break-all;
+}
+
+.document-info {
+    font-size: 0.8em;
+    color: #adb5bd;
+}
+
+.document-delete {
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    font-size: 0.8em;
+}
+
+.document-delete:hover {
+    color: #ff6b6b;
+}
+
+/* 메인 콘텐츠 */
+.main-content {
+    padding: 20px;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.nav-tabs {
+    margin-bottom: 20px;
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+/* 검색 섹션 */
+.search-section {
+    margin-bottom: 30px;
+}
+
+.search-results {
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    min-height: 400px;
+}
+
+.search-result-item {
+    border-bottom: 1px solid #dee2e6;
+    padding: 15px 0;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.result-filename {
+    font-weight: 600;
+    color: #007bff;
+    margin-bottom: 8px;
+}
+
+.result-snippet {
+    color: #6c757d;
+    line-height: 1.5;
+    margin-bottom: 8px;
+}
+
+.result-highlight {
+    background-color: #fff3cd;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+/* 채팅 섹션 */
+.chat-container {
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-messages {
+    flex: 1;
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.message {
+    margin-bottom: 15px;
+    display: flex;
+}
+
+.user-message {
+    justify-content: flex-end;
+}
+
+.bot-message {
+    justify-content: flex-start;
+}
+
+.message-content {
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    word-wrap: break-word;
+}
+
+.user-message .message-content {
+    background-color: #007bff;
+    color: white;
+}
+
+.bot-message .message-content {
+    background-color: #f8f9fa;
+    color: #333;
+    border: 1px solid #dee2e6;
+}
+
+.message-sources {
+    font-size: 0.8em;
+    color: #6c757d;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+.chat-input-section {
+    background-color: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* 로딩 상태 */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* 알림 메시지 */
+.alert {
+    margin-bottom: 20px;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .sidebar {
+        height: auto;
+        padding: 15px;
+    }
+    
+    .main-content {
+        padding: 15px;
+        height: auto;
+    }
+    
+    .chat-container {
+        height: 500px;
+    }
+    
+    .message-content {
+        max-width: 85%;
+    }
+}
+
+/* 스크롤바 스타일링 */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* 애니메이션 */
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
